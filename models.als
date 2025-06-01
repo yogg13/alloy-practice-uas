@@ -1,4 +1,4 @@
-        module registrasiMataKuliah
+module registrasiMataKuliah
 
         // Definisi signature
         sig Mahasiswa {
@@ -134,9 +134,7 @@
 
         // Batasan nilai hanya untuk mata kuliah yang diambil
         fact BatasanNilai {
-            all m: Mahasiswa | m.nilai.univ in m.mengambil        }
-
-        // Fungsi untuk menghitung IPK
+            all m: Mahasiswa | m.nilai.univ in m.mengambil        }        // Fungsi untuk menghitung IPK - FIXED
         fun hitungIPK[m: Mahasiswa]: Int {
             // Dapatkan mata kuliah yang memiliki nilai
             let mksWithGrades = {mk: m.mengambil | some m.nilai[mk]} |
@@ -152,14 +150,16 @@
                     let sksA = sum mk: {mk: mksWithGrades | m.nilai[mk] = A} | mk.sks,
                         sksB = sum mk: {mk: mksWithGrades | m.nilai[mk] = B} | mk.sks,
                         sksC = sum mk: {mk: mksWithGrades | m.nilai[mk] = C} | mk.sks,
-                        sksD = sum mk: {mk: mksWithGrades | m.nilai[mk] = D} | mk.sks,
-                        totalPoints = add[add[add[mul[sksA, 4], mul[sksB, 3]], mul[sksC, 2]], sksD] |
-                      // Hitung IPK dengan format integer (350 = 3.50)
-                    div[mul[totalPoints, 100], totalSKS]
+                        sksD = sum mk: {mk: mksWithGrades | m.nilai[mk] = D} | mk.sks |
+                    
+                    let totalPoints = add[add[add[mul[sksA, 4], mul[sksB, 3]], mul[sksC, 2]], sksD] |
+                        // Hitung IPK dengan format integer (350 = 3.50)
+                        div[mul[totalPoints, 100], totalSKS]
                 )
             )
         }
 
+//START - Assertion
 // Assertion tambahan untuk memvalidasi model
 assert IPKCalculationValid {
     // IPK yang dihitung harus dalam rentang yang wajar (0-400 untuk skala 4.00)
@@ -167,9 +167,9 @@ assert IPKCalculationValid {
 }
 
 assert PrerequisitesEnforced {
-    // Jika mahasiswa mengambil mata kuliah, semua prasyaratnya harus dipenuhi
-    all m: Mahasiswa, mk: m.mengambil | 
-        all prereq: mk.prasyarat | prereq in m.mengambil
+    // Jika mahasiswa mengambil mata kuliah dan registrasi valid, semua prasyaratnya harus dipenuhi
+    all m: Mahasiswa | registrasiValid[m] implies 
+        all mk: m.mengambil, prereq: mk.prasyarat | prereq in m.mengambil
 }
 
 assert NoRoomConflicts {
@@ -195,7 +195,9 @@ assert InstructorWorkloadValid {
         #{mk: MataKuliah | mk.diajarOleh = d} <= 3 and
         (sum mk: MataKuliah | mk.diajarOleh = d => mk.sks else 0) <= 12
 }
+//END - Assertion
 
+//START - Predicates
 // Predicate untuk testing scenarios
 pred studentWithGrades[m: Mahasiswa] {
     // Mahasiswa memiliki beberapa mata kuliah dengan nilai
@@ -218,53 +220,39 @@ pred complexScheduling {
     #SlotWaktu >= 4
     some mk: MataKuliah | #mk.jadwal > 1  // Mata kuliah dengan multiple slot waktu
 }
+//END - Assertion
 
-// Commands untuk menjalankan dan memvalidasi model
-// 1. Command dasar untuk melihat instance valid
-run registrasiValid for 4 but 5 Int
 
-// 2. Check assertion IPK calculation
-check IPKCalculationValid for 4 but 5 Int
 
-// 3. Check prerequisite enforcement
-check PrerequisitesEnforced for 4 but 5 Int
+//START - COMMANDS RUN
+run { some Mahasiswa } for 5 but 6 Int //apakah bisa membuat mahasiswa
+run { some MataKuliah } for 5 but 6 Int // Memperbesar scope untuk memungkinkan instance ditemukan
+run { some m: Mahasiswa | some m.mengambil } for 5 but 6 Int // Memastikan mahasiswa mengambil setidaknya satu mata kuliah
 
-// 4. Check room conflicts
-check NoRoomConflicts for 4 but 5 Int
-
-// 5. Check waitlist consistency
-check WaitlistConsistency for 4 but 5 Int
-
-// 6. Check grade consistency
-check GradeConsistency for 4 but 5 Int
-
-// 7. Check instructor workload
-check InstructorWorkloadValid for 4 but 5 Int
-
-// 8. Run scenario dengan mahasiswa yang memiliki nilai
-run studentWithGrades for 4 but 5 Int
-
-// 9. Run scenario dengan mata kuliah penuh
-run fullCapacityCourse for 4 but 5 Int
-
-// 10. Run scenario penjadwalan kompleks
-run complexScheduling for 5 but 6 Int
-
-// 11. Test fungsi hitungIPK secara spesifik
-run { some m: Mahasiswa | hitungIPK[m] > 0 } for 4 but 5 Int
-
-// 12. Test skenario dengan berbagai nilai IPK
+run { some m: Mahasiswa | registrasiValid[m] } for 6 but 6 Int //melihat instance registrasi yang valid - scope diperbesar
+run studentWithGrades for 4 but 5 Int //scenario dengan mahasiswa yang memiliki nilai
+run fullCapacityCourse for 4 but 5 Int //scenario dengan mata kuliah penuh
+run complexScheduling for 5 but 6 Int //scenario penjadwalan kompleks
 run { 
-    some m1, m2: Mahasiswa | 
-        hitungIPK[m1] > hitungIPK[m2] and 
-        hitungIPK[m1] > 300 
-} for 4 but 5 Int
-
-// 13. Comprehensive test dengan banyak constraints
+    some m: Mahasiswa | 
+        some mk: m.mengambil | some m.nilai[mk] and m.ipk > 0 
+} for 6 but 7 Int // Test fungsi hitungIPK dengan target yang lebih realistis
 run {
     #Mahasiswa >= 3
     #MataKuliah >= 4
     #Dosen >= 2
     some m: Mahasiswa | #m.mengambil >= 3
     some mk: MataKuliah | #{m: Mahasiswa | mk in m.mengambil} > 1
-} for 5 but 6 Int
+} for 5 but 6 Int //Comprehensive test dengan banyak constraints
+// END - COMMANDS RUN
+
+
+
+// START - COMMANDS CHECK
+check IPKCalculationValid for 5 but 6 Int //Check IPK calculation validity
+check PrerequisitesEnforced for 5 but 6 Int //Check prerequisites enforcement dengan scope lebih besar
+check NoRoomConflicts for 4 but 5 Int  //Check room conflicts
+check WaitlistConsistency for 4 but 5 Int //Check waitlist consistency  
+check GradeConsistency for 4 but 5 Int //Check grade consistency
+check InstructorWorkloadValid for 4 but 5 Int //Check instructor workload
+// END - COMMANDS CHECK

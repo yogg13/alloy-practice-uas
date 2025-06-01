@@ -1,265 +1,321 @@
-# Tutorial Lengkap Alloy: Sistem Registrasi Mata Kuliah
-
-Alloy adalah bahasa pemodelan formal yang berguna untuk menggambarkan struktur dan batasan sistem. Tutorial ini menggunakan studi kasus komprehensif sistem registrasi mata kuliah yang mencakup perhitungan IPK, manajemen ruangan, daftar tunggu, dan berbagai fitur lanjutan.
+# Dokumentasi Lengkap Model Alloy: Sistem Registrasi Mata Kuliah
 
 ## Daftar Isi
 
-1. [Statement-Statement Dasar Alloy](#statement-statement-dasar-alloy)
-2. [Konsep Inti Alloy](#konsep-inti-alloy)
-3. [Model Lengkap: Sistem Registrasi Mata Kuliah](#model-lengkap-sistem-registrasi-mata-kuliah)
-4. [Fitur Lanjutan](#fitur-lanjutan)
-5. [Testing dan Validasi](#testing-dan-validasi)
-6. [Panduan Eksekusi](#panduan-eksekusi)
+1. [Pendahuluan](#1-pendahuluan)
+2. [Konsep Dasar Alloy](#2-konsep-dasar-alloy)
+3. [Struktur Model Registrasi Mata Kuliah](#3-struktur-model-registrasi-mata-kuliah)
+4. [Signatures dan Fields](#4-signatures-dan-fields)
+5. [Facts dan Constraints](#5-facts-dan-constraints)
+6. [Predicates dan Functions](#6-predicates-dan-functions)
+7. [Assertions](#7-assertions)
+8. [Run Commands](#8-run-commands)
+9. [Check Commands](#9-check-commands)
+10. [Tips Debugging dan Troubleshooting](#10-tips-debugging-dan-troubleshooting)
+11. [Kesimpulan](#11-kesimpulan)
 
-## Penjelasan Statement-Statement Dasar Alloy
+## 1. Pendahuluan
 
-Sebelum kita mulai dengan konsep inti, mari pahami terlebih dahulu statement-statement dasar dalam Alloy:
+### 1.1 Tentang Model Ini
 
-### Kuantifikasi
+Model Alloy ini menggambarkan sistem registrasi mata kuliah di universitas dengan berbagai entitas dan hubungan kompleks. Model ini mencakup fitur-fitur seperti:
 
-- **`all`**: "untuk semua" atau "untuk setiap"
+- Registrasi mata kuliah dengan validasi prasyarat
+- Pengelolaan kapasitas ruangan dan ketersediaan fasilitas
+- Perhitungan IPK berdasarkan nilai dan SKS
+- Pengelolaan daftar tunggu
+- Penjadwalan mata kuliah tanpa bentrok
+- Kategorisasi mata kuliah dan peminatan mahasiswa
 
-  - Contoh: `all m: Mahasiswa | #(m.mengambil) <= 5`
-  - Artinya: Untuk setiap mahasiswa, jumlah mata kuliah yang diambil tidak boleh lebih dari 5.
+### 1.2 Tujuan Model
 
-- **`some`**: "setidaknya ada satu" atau "ada beberapa"
+Model ini dibuat untuk:
 
-  - Contoh: `some m: Mahasiswa | m.mengambil = mk`
-  - Artinya: Ada setidaknya satu mahasiswa yang mengambil mata kuliah mk.
+- Memverifikasi aturan bisnis dalam sistem registrasi akademik
+- Mendeteksi potensi masalah sebelum implementasi sistem nyata
+- Memastikan integritas data dan konsistensi aturan
+- Mengeksplorasi skenario edge case yang mungkin terjadi
 
-- **`no`**: "tidak ada"
+## 2. Konsep Dasar Alloy
 
-  - Contoh: `no m: Mahasiswa | m.mengambil = mk`
-  - Artinya: Tidak ada mahasiswa yang mengambil mata kuliah mk.
+### 2.1 Bahasa Alloy
 
-- **`lone`**: "paling banyak satu"
+Alloy adalah bahasa spesifikasi berbasis logika formal yang menyediakan cara untuk menjelaskan struktur dan batasan dalam sistem. Beberapa konsep inti dalam Alloy:
 
-  - Contoh: `lone m: Mahasiswa | m.mengambil = mk`
-  - Artinya: Paling banyak ada satu mahasiswa yang mengambil mata kuliah mk.
+- **Atoms**: Objek dasar yang tidak dapat dibagi
+- **Relations**: Hubungan antara atoms
+- **Signatures**: Tipe objek yang mengelompokkan atoms
+- **Fields**: Relasi yang didefinisikan dalam signature
+- **Facts**: Constraint yang selalu harus dipenuhi
+- **Predicates**: Kondisi yang dapat dievaluasi menjadi benar atau salah
+- **Functions**: Ekspresi yang menghasilkan nilai
+- **Assertions**: Pernyataan yang diverifikasi melalui pencarian counterexample
 
-- **`one`**: "tepat satu"
-  - Contoh: `one m: Mahasiswa | m.mengambil = mk`
-  - Artinya: Tepat ada satu mahasiswa yang mengambil mata kuliah mk.
+### 2.2 Analisis dengan Alloy Analyzer
 
-### Variabel dan Deklarasi
+Alloy Analyzer bekerja dengan:
 
-- **`m:`, `mk:`, `pr:`, `d:`**: Deklarasi variabel dengan tipe tertentu
-  - Contoh: `m: Mahasiswa` berarti m adalah variabel dengan tipe Mahasiswa
-  - Artinya: Seperti mengatakan "misalkan m adalah seorang mahasiswa" atau "untuk setiap objek m yang merupakan Mahasiswa".
+1. Mengonversi model Alloy ke formula boolean
+2. Menggunakan SAT solver untuk mencari solusi
+3. Memberikan visualisasi instance yang memenuhi batasan (untuk run commands)
+4. Mencari counterexample untuk assertion (untuk check commands)
 
-### Operator Dasar
+## 3. Struktur Model Registrasi Mata Kuliah
 
-- **`|` (pipe)**: Pemisah antara deklarasi variabel dan formula
-
-  - Contoh: `all m: Mahasiswa | #(m.mengambil) <= 5`
-  - Artinya: Pemisah yang berarti "sedemikian sehingga" atau "dengan syarat".
-
-- **`#(...)` atau `#{...}`**: Menghitung jumlah elemen dalam set
-
-  - Contoh: `#(m.mengambil)` menghitung jumlah mata kuliah yang diambil mahasiswa m
-  - Contoh Kurung Kurawal: `#{m: Mahasiswa | mk in m.mengambil}` menghitung jumlah mahasiswa yang mengambil mata kuliah mk
-  - Artinya: Operator untuk menghitung "berapa banyak".
-
-- **`in`**: Relasi keanggotaan dalam set
-
-  - Contoh: `mk in m.mengambil`
-  - Artinya: Mata kuliah mk termasuk dalam set mata kuliah yang diambil oleh mahasiswa m.
-
-- **`^` (transitive closure)**: Closure transitif dari relasi
-
-  - Contoh: `mk.^prasyarat`
-  - Artinya: Semua mata kuliah yang menjadi prasyarat dari mk, secara langsung maupun tidak langsung.
-  - Penjelasan Detail: Jika A adalah prasyarat B, dan B adalah prasyarat C, maka A dan B adalah anggota dari C.^prasyarat. Operator ini mencari semua elemen yang terhubung secara tidak langsung melalui sebuah relasi, seperti mencari "teman dari teman" atau "prasyarat dari prasyarat".
-
-- **`*` (reflexive transitive closure)**: Closure transitif refleksif dari relasi
-  - Contoh: `mk.*prasyarat`
-  - Artinya: Seperti `^` tetapi termasuk juga dirinya sendiri.
-  - Penjelasan Detail: Hampir sama dengan operator ^, tetapi juga menyertakan elemen awal itu sendiri. Ini seperti "saya, teman saya, dan teman dari teman saya".
-
-### Operator Relasional Lainnya
-
-- **`+` (union)**: Gabungan dua set
-
-  - Contoh: `mahasiswaReguler + mahasiswaTransfer`
-  - Artinya: Set yang berisi semua mahasiswa reguler dan semua mahasiswa transfer.
-
-- **`&` (intersection)**: Irisan dua set
-
-  - Contoh: `d.mengajar & m.mengambil`
-  - Artinya: Set mata kuliah yang diajar oleh dosen d dan diambil oleh mahasiswa m.
-
-- **`-` (difference)**: Selisih dua set
-
-  - Contoh: `MataKuliah - m.mengambil`
-  - Artinya: Set mata kuliah yang tidak diambil oleh mahasiswa m.
-
-- **`.` (dot join)**: Menghubungkan relasi
-
-  - Contoh: `m.mengambil`
-  - Artinya: Set mata kuliah yang diambil oleh mahasiswa m.
-
-- **`->` (product)**: Produk kartesian
-
-  - Contoh: `Mahasiswa -> MataKuliah`
-  - Artinya: Set semua pasangan mahasiswa-mata kuliah yang mungkin.
-
-- **`=` (equal)**: Kesamaan
-
-  - Contoh: `m.mengambil = mk`
-  - Artinya: Set mata kuliah yang diambil mahasiswa m sama dengan mk.
-
-- **`not` (negation)**: Negasi
-
-  - Contoh: `mk not in m.mengambil`
-  - Artinya: Mata kuliah mk tidak termasuk dalam set mata kuliah yang diambil oleh mahasiswa m.
-
-- **`<=` (subset or less than or equal)**: Subset atau kurang dari sama dengan
-  - Contoh: `#(m.mengambil) <= 5`
-  - Artinya: Jumlah mata kuliah yang diambil oleh mahasiswa m tidak lebih dari 5.
-
-## 1. Deklarasi Signature dan Field
-
-**Signature (sig)** adalah cara untuk mendefinisikan tipe atau set objek dalam model Alloy. **Field** mendefinisikan relasi antara signature.
-
-### Sintaks Dasar:
+### 3.1 Modul dan Import
 
 ```alloy
-sig NamaSig {
-    namaField: [multiplisitas] TipeTujuan
+module registrasiMataKuliah
+```
+
+**Penjelasan:**
+
+- `module`: Keyword untuk mendeklarasikan nama modul
+- `registrasiMataKuliah`: Nama modul yang berfungsi sebagai namespace
+- Modul dalam Alloy seperti package dalam bahasa pemrograman lain
+- Berguna untuk mengorganisir model dan memungkinkan reusability
+
+## 4. Signatures dan Fields
+
+### 4.1 Signature Mahasiswa
+
+```alloy
+sig Mahasiswa {
+    mengambil: set MataKuliah,
+    status: one StatusMahasiswa,
+    semester: one Int,
+    ipk: one Int,  // IPK dalam bentuk skala integer (mis. 350 = 3.50)
+    peminatan: lone KategoriMK,
+    nilai: MataKuliah -> lone Nilai
 }
 ```
 
-### Contoh:
+**Penjelasan Step-by-Step:**
+
+1. **`sig Mahasiswa`**: Mendefinisikan signature baru bernama "Mahasiswa" yang merepresentasikan entitas mahasiswa dalam sistem
+2. **`mengambil: set MataKuliah`**:
+
+   - Field `mengambil` yang bernilai set dari MataKuliah
+   - `set` menunjukkan mahasiswa bisa mengambil 0 atau lebih mata kuliah
+   - Merepresentasikan mata kuliah yang sedang diambil oleh mahasiswa
+
+3. **`status: one StatusMahasiswa`**:
+
+   - Field `status` yang bernilai tepat satu StatusMahasiswa
+   - `one` menunjukkan harus ada tepat satu nilai (tidak boleh 0 atau lebih dari 1)
+   - Merepresentasikan status mahasiswa (Sarjana/Magister/Doktor)
+
+4. **`semester: one Int`**:
+
+   - Field `semester` yang bernilai tepat satu integer
+   - Merepresentasikan semester saat ini dari mahasiswa (misalnya: 1, 2, 3, dst.)
+
+5. **`ipk: one Int`**:
+
+   - Field `ipk` yang bernilai tepat satu integer
+   - Format khusus: nilai integer digunakan untuk merepresentasikan IPK (350 = 3.50)
+   - Merepresentasikan Indeks Prestasi Kumulatif mahasiswa
+
+6. **`peminatan: lone KategoriMK`**:
+
+   - Field `peminatan` yang bernilai paling banyak satu KategoriMK
+   - `lone` = "less than or equal to one" (0 atau 1)
+   - Mahasiswa boleh tidak memiliki peminatan atau memiliki satu peminatan
+
+7. **`nilai: MataKuliah -> lone Nilai`**:
+   - Field `nilai` yang merupakan relasi dari MataKuliah ke Nilai
+   - `->` adalah operator product yang membuat relasi (mapping)
+   - `lone Nilai` menunjukkan setiap mata kuliah memiliki paling banyak satu nilai
+   - Merepresentasikan nilai mahasiswa untuk setiap mata kuliah yang diambil
+
+### 4.2 Signature MataKuliah
 
 ```alloy
-// Signature sederhana tanpa field
-sig Mahasiswa {}
-
-// Signature dengan field
 sig MataKuliah {
     prasyarat: set MataKuliah,
-    kapasitas: one Int
+    kapasitas: one Int,
+    diajarOleh: one Dosen,
+    jadwal: set SlotWaktu,
+    sks: one Int,
+    ruangan: one Ruangan,
+    butuhanFasilitas: set Fasilitas,
+    daftarTunggu: seq Mahasiswa,
+    jenis: one JenisMK,
+    kategori: set KategoriMK
 }
+```
 
-// Signature dengan beberapa field
+**Penjelasan Step-by-Step:**
+
+1. **`sig MataKuliah`**: Mendefinisikan signature untuk entitas mata kuliah
+
+2. **`prasyarat: set MataKuliah`**:
+
+   - Field `prasyarat` yang bernilai set MataKuliah
+   - **Relasi refleksif**: Signature yang mereferensi dirinya sendiri
+   - Merepresentasikan mata kuliah yang harus diselesaikan sebelum mengambil mata kuliah ini
+
+3. **`kapasitas: one Int`**:
+
+   - Field `kapasitas` yang bernilai tepat satu integer
+   - Merepresentasikan jumlah maksimal mahasiswa yang dapat mengambil mata kuliah
+
+4. **`diajarOleh: one Dosen`**:
+
+   - Field `diajarOleh` yang bernilai tepat satu Dosen
+   - Merepresentasikan dosen yang mengajar mata kuliah ini
+
+5. **`jadwal: set SlotWaktu`**:
+
+   - Field `jadwal` yang bernilai set SlotWaktu
+   - Mata kuliah bisa memiliki beberapa slot waktu pertemuan
+
+6. **`sks: one Int`**:
+
+   - Field `sks` yang bernilai tepat satu integer
+   - Merepresentasikan bobot SKS (Satuan Kredit Semester) mata kuliah
+
+7. **`ruangan: one Ruangan`**:
+
+   - Field `ruangan` yang bernilai tepat satu Ruangan
+   - Merepresentasikan ruangan tempat mata kuliah dilaksanakan
+
+8. **`butuhanFasilitas: set Fasilitas`**:
+
+   - Field `butuhanFasilitas` yang bernilai set Fasilitas
+   - Merepresentasikan fasilitas yang dibutuhkan untuk mata kuliah
+
+9. **`daftarTunggu: seq Mahasiswa`**:
+
+   - Field `daftarTunggu` yang bernilai sequence (urutan) dari Mahasiswa
+   - **`seq`**: Berbeda dari set, sequence mempertahankan urutan dan boleh berisi duplikat
+   - Merepresentasikan daftar mahasiswa yang menunggu untuk masuk ke mata kuliah yang sudah penuh
+
+10. **`jenis: one JenisMK`**:
+
+    - Field `jenis` yang bernilai tepat satu JenisMK
+    - Merepresentasikan tipe mata kuliah (Wajib/Pilihan/UmumUniversitas)
+
+11. **`kategori: set KategoriMK`**:
+    - Field `kategori` yang bernilai set KategoriMK
+    - Merepresentasikan kategori peminatan yang terkait dengan mata kuliah
+    - Satu mata kuliah bisa masuk ke beberapa kategori peminatan
+
+### 4.3 Signature Dosen dan Departemen
+
+```alloy
 sig Dosen {
-    mengajar: some MataKuliah,
     departemen: one Departemen
 }
 
-// Signature dengan extend (inheritance)
-abstract sig Orang {}
-sig Mahasiswa extends Orang {
-    mengambil: set MataKuliah
-}
-sig Dosen extends Orang {
-    mengajar: set MataKuliah
-}
+sig Departemen {}
 ```
 
-### Jenis Multiplisitas:
+**Penjelasan:**
 
-- `one`: tepat satu
-- `lone`: nol atau satu
-- `some`: satu atau lebih
-- `set`: nol atau lebih (default)
+1. **`sig Dosen`**: Mendefinisikan signature untuk entitas dosen
 
-## 2. Ekspresi Relasional
+   - **`departemen: one Departemen`**: Setiap dosen terhubung dengan tepat satu departemen
 
-Ekspresi relasional digunakan untuk memanipulasi relasi dalam model.
+2. **`sig Departemen {}`**: Mendefinisikan signature untuk entitas departemen
+   - Tidak memiliki field, hanya digunakan sebagai identifier departemen
 
-### Operator Dasar:
-
-- **Dot Join** (`.`): menghubungkan relasi
-- **Product** (`->`): produk kartesian
-- **Union** (`+`): gabungan relasi
-- **Difference** (`-`): selisih relasi
-- **Intersection** (`&`): irisan relasi
-
-### Contoh:
+### 4.4 Signature SlotWaktu, Ruangan, dan Fasilitas
 
 ```alloy
-// m.mengambil adalah set mata kuliah yang diambil oleh mahasiswa m
-all m: Mahasiswa | #(m.mengambil) <= 5
+sig SlotWaktu {}
 
-// d.mengajar adalah set mata kuliah yang diajar oleh dosen d
-all d: Dosen | some d.mengajar
+sig Ruangan {
+    kapasitas: one Int,
+    fasilitas: set Fasilitas
+}
 
-// Semua mahasiswa yang mengambil mata kuliah yang diajar oleh dosen tertentu
-all d: Dosen | some m: Mahasiswa | some (m.mengambil & d.mengajar)
+abstract sig Fasilitas {}
+one sig Proyektor, Komputer, Lab extends Fasilitas {}
 ```
 
-## 3. Predikat dan Fungsi
+**Penjelasan:**
 
-**Predikat (pred)** mendefinisikan batasan yang bisa benar atau salah. **Fungsi (fun)** mengembalikan nilai.
+1. **`sig SlotWaktu {}`**: Mendefinisikan signature untuk slot waktu perkuliahan
 
-### Sintaks Predikat:
+   - Signature kosong tanpa field, hanya digunakan untuk identifikasi
+
+2. **`sig Ruangan`**: Mendefinisikan signature untuk ruangan
+
+   - **`kapasitas: one Int`**: Jumlah mahasiswa maksimal yang bisa ditampung
+   - **`fasilitas: set Fasilitas`**: Fasilitas yang tersedia di ruangan
+
+3. **`abstract sig Fasilitas {}`**:
+
+   - Signature abstract yang tidak dapat diinstansiasi langsung
+   - Berfungsi sebagai "parent class" untuk tipe-tipe fasilitas
+
+4. **`one sig Proyektor, Komputer, Lab extends Fasilitas {}`**:
+   - Mendefinisikan tiga singleton signature yang meng-extend Fasilitas
+   - `one sig` berarti hanya ada satu instance untuk setiap signature
+   - `extends` menunjukkan inheritance (pewarisan) dari signature Fasilitas
+   - Proyektor, Komputer, dan Lab adalah tiga jenis fasilitas dalam sistem
+
+### 4.5 Abstract Signatures, Inheritance, dan Enumerations
+
+#### Status Mahasiswa
 
 ```alloy
-pred namaPred[parameter: Tipe] {
-    // batasan
-}
+abstract sig StatusMahasiswa {}
+one sig Sarjana, Magister, Doktor extends StatusMahasiswa {}
 ```
 
-### Sintaks Fungsi:
+**Penjelasan:**
+
+- `abstract sig StatusMahasiswa {}`: Signature abstract untuk mewakili status akademik
+- `one sig Sarjana, Magister, Doktor extends StatusMahasiswa {}`:
+  - Tiga singleton signature yang meng-extend StatusMahasiswa
+  - Membuat enumerasi untuk status mahasiswa
+  - Setiap status hanya memiliki tepat satu instance
+
+#### Jenis Mata Kuliah
 
 ```alloy
-fun namaFungsi[parameter: Tipe]: HasilTipe {
-    // ekspresi yang mengembalikan nilai
-}
+abstract sig JenisMK {}
+one sig Wajib, Pilihan, UmumUniversitas extends JenisMK {}
 ```
 
-### Contoh:
+**Penjelasan:**
+
+- `abstract sig JenisMK {}`: Signature abstract untuk jenis mata kuliah
+- `one sig Wajib, Pilihan, UmumUniversitas extends JenisMK {}`:
+  - Tiga singleton signature untuk tipe mata kuliah
+  - Membuat enumerasi untuk jenis mata kuliah
+
+#### Kategori Mata Kuliah
 
 ```alloy
-// Predikat untuk mahasiswa yang mengambil mata kuliah dengan prasyarat terpenuhi
-pred prasyaratTerpenuhi[m: Mahasiswa] {
-    all mk: m.mengambil | all pr: mk.prasyarat | pr in m.mengambil
-}
-
-// Fungsi untuk mendapatkan semua dosen yang mengajar mata kuliah yang diambil oleh mahasiswa
-fun dosenPengajar[m: Mahasiswa]: set Dosen {
-    {d: Dosen | some (d.mengajar & m.mengambil)}
-}
+sig KategoriMK {}
 ```
 
-## 4. Constraints (Fakta, Asertif)
+**Penjelasan:**
 
-**Fakta (fact)** adalah batasan yang selalu benar dalam model. **Asertif (assert)** adalah properti yang ingin diuji.
+- `sig KategoriMK {}`: Signature untuk kategori mata kuliah (peminatan)
+- Tidak abstract, sehingga bisa memiliki banyak instance
+- Tidak memiliki field, hanya sebagai identifier
 
-### Sintaks Fakta:
+#### Nilai Mata Kuliah
 
 ```alloy
-fact namaFakta {
-    // batasan yang selalu benar
-}
+abstract sig Nilai {}
+one sig A, B, C, D, E extends Nilai {}
 ```
 
-### Sintaks Asertif:
+**Penjelasan:**
 
-```alloy
-assert namaAsertif {
-    // properti yang ingin diuji
-}
-```
+- `abstract sig Nilai {}`: Signature abstract untuk nilai mata kuliah
+- `one sig A, B, C, D, E extends Nilai {}`:
+  - Lima singleton signature yang meng-extend Nilai
+  - Membuat enumerasi untuk nilai mata kuliah
 
-### Contoh:
+## 5. Facts dan Constraints
 
-```alloy
-// Fakta: setiap mata kuliah memiliki kapasitas maksimal
-fact KapasitasMaksimal {
-    all mk: MataKuliah | #{m: Mahasiswa | mk in m.mengambil} <= mk.kapasitas
-}
-
-// Asertif: tidak ada mahasiswa yang mengambil lebih dari 5 mata kuliah
-assert MaksimalMataKuliah {
-    all m: Mahasiswa | #(m.mengambil) <= 5
-}
-```
-
-### Fakta-Fakta Utama (Constraints)
-
-#### 1. Kapasitas dan Registrasi
+### 5.1 Fact KapasitasMaksimal
 
 ```alloy
 fact KapasitasMaksimal {
@@ -268,109 +324,82 @@ fact KapasitasMaksimal {
 }
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Definisi Constraint Global `fact KapasitasMaksimal`**
+1. **`fact KapasitasMaksimal`**: Mendeklarasikan fact dengan nama yang deskriptif
+2. **`all mk: MataKuliah`**: Universal quantification - untuk setiap mata kuliah
+3. **`#{m: Mahasiswa | mk in m.mengambil}`**:
+   - **Set comprehension**: `{m: Mahasiswa | mk in m.mengambil}` - himpunan mahasiswa yang mengambil mata kuliah `mk`
+   - **`#`**: Operator cardinality (menghitung jumlah elemen dalam set)
+   - Menghitung jumlah mahasiswa yang mengambil mata kuliah `mk`
+4. **`<= mk.kapasitas`**: Memastikan jumlah mahasiswa tidak melebihi kapasitas mata kuliah
+5. **Business Rule**: Mencegah kelebihan kapasitas dalam pendaftaran mata kuliah
 
-- **Tujuan:** Menciptakan aturan yang berlaku untuk seluruh model tanpa pengecualian
-- **Alasan Penggunaan `fact`:** Facts selalu diberlakukan dalam semua instance model, tidak seperti predicates yang bisa dipilih untuk dijalankan
-- **Dampak:** Memastikan semua solusi model mematuhi batasan kapasitas kelas
-
-**Step 2: Kuantifikasi Universal `all mk: MataKuliah`**
-
-- **Tujuan:** Menerapkan aturan pada setiap mata kuliah dalam sistem
-- **Alasan Penggunaan `all`:** Aturan kapasitas harus berlaku untuk semua mata kuliah tanpa kecuali
-- **Mekanisme Kerja:** Alloy akan memeriksa setiap instance MataKuliah satu per satu
-
-**Step 3: Perhitungan Set `#{m: Mahasiswa | mk in m.mengambil}`**
-
-- **Tujuan:** Menghitung jumlah mahasiswa yang mengambil mata kuliah tertentu
-- **Alasan Teknis:** Operator `#` menghitung kardinalitas set, dengan set comprehension di dalamnya
-- **Logika:** `mk in m.mengambil` memilih mahasiswa yang mengambil mata kuliah mk
-- **Hasil:** Jumlah total mahasiswa yang terdaftar di mata kuliah mk
-
-**Step 4: Pembatasan `<= mk.kapasitas`**
-
-- **Tujuan:** Memastikan jumlah mahasiswa tidak melebihi kapasitas yang ditetapkan
-- **Alasan Bisnis:** Ruangan fisik dan kualitas pengajaran memiliki batasan jumlah peserta
-- **Konsekuensi:** Alloy akan menolak semua model yang melanggar batasan ini
-- **Manfaat Praktis:** Mencegah oversubscription dan menjaga kualitas pembelajaran
-
-#### 2. Validasi Prasyarat
+### 5.2 Fact PrasyaratValid
 
 ```alloy
 fact PrasyaratValid {
-    // Mata kuliah tidak bisa menjadi prasyarat untuk dirinya sendiri
+    // Mata kuliah tidak bisa menjadi prasyarat untuk dirinya sendiri (langsung atau tidak langsung)
     all mk: MataKuliah | mk not in mk.^prasyarat
 }
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Definisi Constraint Antisiklus `fact PrasyaratValid`**
+1. **`fact PrasyaratValid`**: Mendeklarasikan fact untuk validasi prasyarat
+2. **`all mk: MataKuliah`**: Universal quantification - untuk setiap mata kuliah
+3. **`mk.^prasyarat`**:
+   - **`^`**: Operator transitive closure
+   - Menghasilkan semua prasyarat langsung dan tidak langsung dari mata kuliah `mk`
+   - Contoh: Jika A prasyarat B dan B prasyarat C, maka A dan B keduanya ada di C.^prasyarat
+4. **`mk not in mk.^prasyarat`**: Memastikan mata kuliah tidak muncul dalam daftar prasyaratnya sendiri
+5. **Purpose**: Mencegah circular dependency dalam struktur prasyarat
 
-- **Tujuan:** Mencegah siklus prasyarat yang tidak logis dalam kurikulum
-- **Alasan Kebutuhan:** Siklus prasyarat membuat mata kuliah tidak mungkin diambil (deadlock)
-- **Dampak Akademik:** Memastikan jalur studi mahasiswa selalu memiliki titik awal yang jelas
-
-**Step 2: Kuantifikasi Universal `all mk: MataKuliah`**
-
-- **Tujuan:** Menerapkan aturan anti-siklus pada setiap mata kuliah
-- **Alasan Penggunaan `all`:** Tidak boleh ada pengecualian untuk aturan ini
-- **Cakupan:** Memeriksa setiap mata kuliah dalam sistem satu per satu
-
-**Step 3: Operator Transitive Closure `mk.^prasyarat`**
-
-- **Tujuan:** Memeriksa seluruh rantai prasyarat secara rekursif
-- **Alasan Penggunaan `^`:** Kita perlu memeriksa prasyarat langsung dan tidak langsung
-- **Mekanisme Kerja:** Mulai dari mk, ikuti relasi prasyarat berulang kali
-- **Contoh:** Jika A prasyarat B, dan B prasyarat C, maka A dan B adalah anggota C.^prasyarat
-
-**Step 4: Negasi Keanggotaan `mk not in`**
-
-- **Tujuan:** Mencegah mata kuliah mereferensi dirinya sendiri dalam rantai prasyarat
-- **Alasan Logis:** Mata kuliah tidak dapat membutuhkan dirinya sendiri sebagai prasyarat
-- **Implementasi Teknis:** Memastikan mk tidak muncul dalam set mk.^prasyarat
-- **Konsekuensi:** Menghilangkan siklus seperti A → B → C → A yang mustahil dipenuhi
-
-#### 3. Manajemen Jadwal
+### 5.3 Fact TidakAdaBentrokJadwal
 
 ```alloy
 fact TidakAdaBentrokJadwal {
-    // Mahasiswa tidak boleh mengambil mata kuliah dengan jadwal bertabrakan
     all m: Mahasiswa | all disj mk1, mk2: m.mengambil |
         no (mk1.jadwal & mk2.jadwal)
 }
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Definisi Constraint Jadwal `fact TidakAdaBentrokJadwal`**
+1. **`fact TidakAdaBentrokJadwal`**: Mendeklarasikan fact untuk mencegah bentrok jadwal
+2. **`all m: Mahasiswa`**: Untuk setiap mahasiswa
+3. **`all disj mk1, mk2: m.mengambil`**:
+   - **`disj`**: Keyword untuk distinct - mk1 dan mk2 harus berbeda
+   - Untuk setiap pasangan mata kuliah berbeda yang diambil mahasiswa
+4. **`no (mk1.jadwal & mk2.jadwal)`**:
+   - **`&`**: Operator intersection (irisan)
+   - **`mk1.jadwal & mk2.jadwal`**: Slot waktu yang sama antara dua mata kuliah
+   - **`no`**: Quantifier yang berarti "tidak ada" elemen dalam hasil
+5. **Purpose**: Memastikan tidak ada mahasiswa yang mengambil dua mata kuliah dengan jadwal yang bentrok
 
-- **Tujuan:** Mencegah mahasiswa terdaftar di kelas yang berjalan secara bersamaan
-- **Alasan Praktis:** Mahasiswa tidak dapat berada di dua tempat pada waktu yang sama
-- **Dampak Akademik:** Memastikan mahasiswa dapat menghadiri semua kelas yang diambil
+### 5.4 Fact PersyaratanPeminatan
 
-**Step 2: Kuantifikasi Mahasiswa `all m: Mahasiswa`**
+```alloy
+fact PersyaratanPeminatan {
+    all m: Mahasiswa | some m.peminatan implies
+        #{mk: m.mengambil | m.peminatan in mk.kategori} >= 3
+}
+```
 
-- **Tujuan:** Menerapkan aturan jadwal untuk setiap mahasiswa dalam sistem
-- **Alasan Penggunaan `all`:** Aturan ini berlaku tanpa pengecualian untuk semua mahasiswa
-- **Cakupan:** Memeriksa jadwal setiap mahasiswa satu per satu
+**Penjelasan Step-by-Step:**
 
-**Step 3: Kuantifikasi Pasangan Mata Kuliah `all disj mk1, mk2: m.mengambil`**
+1. **`fact PersyaratanPeminatan`**: Mendeklarasikan fact untuk aturan peminatan
+2. **`all m: Mahasiswa`**: Untuk setiap mahasiswa
+3. **`some m.peminatan implies`**:
+   - **`some m.peminatan`**: Mahasiswa memiliki peminatan (tidak null)
+   - **`implies`**: Operator implikasi logis (jika... maka...)
+4. **`#{mk: m.mengambil | m.peminatan in mk.kategori} >= 3`**:
+   - **Set comprehension**: Mata kuliah yang diambil mahasiswa yang kategorinya termasuk peminatan mahasiswa
+   - **`#`**: Menghitung jumlah mata kuliah tersebut
+   - Harus minimal 3 mata kuliah
+5. **Purpose**: Memastikan mahasiswa yang memilih peminatan mengambil minimal 3 mata kuliah di peminatan tersebut
 
-- **Tujuan:** Memeriksa setiap pasangan berbeda mata kuliah yang diambil seorang mahasiswa
-- **Alasan Penggunaan `disj`:** Memastikan kita hanya membandingkan dua mata kuliah berbeda
-- **Mekanisme:** Untuk setiap mahasiswa m, periksa semua pasangan mata kuliah yang diambilnya
-
-**Step 4: Pemeriksaan Irisan Jadwal `no (mk1.jadwal & mk2.jadwal)`**
-
-- **Tujuan:** Memastikan tidak ada slot waktu yang sama antara dua mata kuliah
-- **Alasan Penggunaan `&`:** Operator irisan menemukan slot waktu yang sama antara dua jadwal
-- **Alasan Penggunaan `no`:** Menentukan bahwa irisan harus kosong (tidak ada overlap)
-- **Konsekuensi:** Model ditolak jika ada mahasiswa yang terdaftar di dua mata kuliah dengan jadwal bertabrakan
-
-#### 4. Manajemen Ruangan
+### 5.5 Fact KetersediaanRuangan
 
 ```alloy
 fact KetersediaanRuangan {
@@ -387,114 +416,189 @@ fact KetersediaanRuangan {
 }
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Constraint Kapasitas Ruangan**
+1. **Constraint pertama - Kapasitas ruangan**:
 
-- **Tujuan:** Memastikan ruangan cukup besar untuk menampung semua mahasiswa terdaftar
-- **Alasan Praktis:** Keamanan dan kenyamanan fisik mengharuskan penghitungan kapasitas
-- **Implementasi Teknis:** Membandingkan kapasitas ruangan dengan jumlah mahasiswa terdaftar
-- **Mekanisme Kerja:** `mk.ruangan.kapasitas` mengakses nilai kapasitas ruangan melalui relasi berantai
+   - **`all mk: MataKuliah`**: Untuk setiap mata kuliah
+   - **`mk.ruangan.kapasitas`**: Kapasitas ruangan tempat mata kuliah diselenggarakan
+   - **`>= #{m: Mahasiswa | mk in m.mengambil}`**: Harus lebih besar atau sama dengan jumlah mahasiswa yang mengambil mata kuliah
 
-**Step 2: Constraint Ketersediaan Fasilitas**
+2. **Constraint kedua - Fasilitas tersedia**:
 
-- **Tujuan:** Memastikan ruangan memiliki semua fasilitas yang dibutuhkan mata kuliah
-- **Alasan Penggunaan `in`:** Operator subset memeriksa apakah semua fasilitas yang dibutuhkan tersedia
-- **Contoh Praktis:** Mata kuliah lab komputer membutuhkan ruangan dengan komputer
-- **Konsekuensi:** Mencegah penempatan mata kuliah di ruangan yang tidak memadai
+   - **`all mk: MataKuliah`**: Untuk setiap mata kuliah
+   - **`mk.butuhanFasilitas in mk.ruangan.fasilitas`**:
+     - **`in`**: Operator subset - semua elemen di sisi kiri harus ada di sisi kanan
+     - Semua fasilitas yang dibutuhkan oleh mata kuliah harus tersedia di ruangan
 
-**Step 3: Constraint Pencegahan Bentrok Ruangan**
+3. **Constraint ketiga - Tidak ada bentrok ruangan**:
+   - **`all r: Ruangan, t: SlotWaktu`**: Untuk setiap pasangan ruangan dan slot waktu
+   - **`lone mk: MataKuliah | mk.ruangan = r and t in mk.jadwal`**:
+     - **`lone`**: Paling banyak satu mata kuliah
+     - **`mk.ruangan = r and t in mk.jadwal`**: Mata kuliah yang menggunakan ruangan r pada slot waktu t
+     - Memastikan tidak ada dua mata kuliah yang menggunakan ruangan yang sama pada waktu yang sama
 
-- **Tujuan:** Memastikan sebuah ruangan hanya digunakan oleh satu mata kuliah pada waktu tertentu
-- **Alasan Penggunaan `lone`:** Maksimal satu mata kuliah bisa menggunakan ruangan pada slot waktu tertentu
-- **Logika Implementasi:** Untuk setiap kombinasi ruangan dan slot waktu, cari mata kuliah yang menggunakannya
-- **Dampak Kebijakan:** Mencegah double-booking ruangan, memastikan ketersediaan fisik
-
-#### 5. Sistem Daftar Tunggu
+### 5.6 Fact AturanDaftarTunggu
 
 ```alloy
 fact AturanDaftarTunggu {
-    // Mahasiswa di daftar tunggu tidak sedang mengambil mata kuliah tersebut
     all mk: MataKuliah | all m: elems[mk.daftarTunggu] |
         m not in {mhs: Mahasiswa | mk in mhs.mengambil}
 }
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Definisi Constraint Daftar Tunggu**
+1. **`fact AturanDaftarTunggu`**: Mendeklarasikan fact untuk aturan daftar tunggu
+2. **`all mk: MataKuliah`**: Untuk setiap mata kuliah
+3. **`all m: elems[mk.daftarTunggu]`**:
+   - **`elems[...]`**: Mengambil elemen-elemen dalam sequence
+   - Untuk setiap mahasiswa dalam daftar tunggu mata kuliah
+4. **`m not in {mhs: Mahasiswa | mk in mhs.mengambil}`**:
+   - **Set comprehension**: `{mhs: Mahasiswa | mk in mhs.mengambil}` - mahasiswa yang sudah mengambil mata kuliah
+   - **`not in`**: Memastikan mahasiswa tidak ada dalam set tersebut
+5. **Purpose**: Memastikan mahasiswa dalam daftar tunggu tidak sedang mengambil mata kuliah yang sama
 
-- **Tujuan:** Memastikan konsistensi antara pendaftaran aktif dan daftar tunggu
-- **Alasan Bisnis:** Mahasiswa tidak seharusnya berada di daftar aktif dan tunggu secara bersamaan
-- **Dampak Administrasi:** Mencegah duplikasi dan memastikan integritas data sistem registrasi
-
-**Step 2: Kuantifikasi Universal `all mk: MataKuliah`**
-
-- **Tujuan:** Menerapkan aturan untuk setiap mata kuliah dalam sistem
-- **Alasan Penggunaan `all`:** Konsistensi daftar tunggu harus dijamin untuk semua mata kuliah
-- **Cakupan:** Memeriksa setiap mata kuliah satu per satu
-
-**Step 3: Extraksi Elemen Daftar Tunggu `all m: elems[mk.daftarTunggu]`**
-
-- **Tujuan:** Memeriksa setiap mahasiswa dalam daftar tunggu mata kuliah
-- **Alasan Penggunaan `elems`:** Mengkonversi sequence (urutan) menjadi set anggota
-- **Signifikansi:** Mempertahankan urutan dalam daftar tunggu penting untuk fairness (FIFO)
-- **Mekanisme:** Untuk setiap mahasiswa dalam daftar tunggu, terapkan constraint berikutnya
-
-**Step 4: Negasi Keanggotaan Aktif `m not in {...}`**
-
-- **Tujuan:** Memastikan mahasiswa di daftar tunggu tidak terdaftar aktif di mata kuliah
-- **Alasan Penggunaan Set Comprehension:** Mendefinisikan set mahasiswa yang mengambil mata kuliah mk
-- **Logika Validasi:** Mahasiswa m tidak boleh berada dalam set mahasiswa yang mengambil mata kuliah
-- **Konsekuensi Operasional:** Sistem dapat secara otomatis memindahkan mahasiswa dari daftar tunggu ke aktif saat ada slot kosong
-
-#### 6. Beban Kerja Dosen
+### 5.7 Fact BebanKerjaDosen
 
 ```alloy
 fact BebanKerjaDosen {
     // Tidak ada dosen yang mengajar lebih dari 3 mata kuliah
     all d: Dosen | #{mk: MataKuliah | mk.diajarOleh = d} <= 3
 
-    // Total SKS yang diajarkan tidak melebihi 12 SKS
+    // Total SKS yang diajarkan tidak melebihi batas
     all d: Dosen | (sum mk: MataKuliah | mk.diajarOleh = d => mk.sks else 0) <= 12
 }
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Definisi Constraint Jumlah Mata Kuliah**
+1. **Constraint pertama - Batas jumlah mata kuliah**:
 
-- **Tujuan:** Membatasi jumlah mata kuliah yang diajar oleh seorang dosen
-- **Alasan Kebijakan:** Menjaga kualitas pengajaran dan mencegah burnout dosen
-- **Implementasi Teknis:** Menghitung jumlah mata kuliah yang diajarkan setiap dosen
-- **Batas Spesifik:** Maksimal 3 mata kuliah per dosen per semester
+   - **`all d: Dosen`**: Untuk setiap dosen
+   - **`#{mk: MataKuliah | mk.diajarOleh = d} <= 3`**:
+     - **Set comprehension**: `{mk: MataKuliah | mk.diajarOleh = d}` - mata kuliah yang diajar oleh dosen d
+     - **`#`**: Menghitung jumlah mata kuliah tersebut
+     - Harus kurang dari atau sama dengan 3
 
-**Step 2: Kuantifikasi Universal Dosen `all d: Dosen`**
+2. **Constraint kedua - Batas total SKS**:
+   - **`all d: Dosen`**: Untuk setiap dosen
+   - **`(sum mk: MataKuliah | mk.diajarOleh = d => mk.sks else 0) <= 12`**:
+     - **`sum`**: Operator penjumlahan
+     - **`mk.diajarOleh = d => mk.sks else 0`**: Jika mata kuliah diajar oleh dosen d, hitung SKSnya, jika tidak bernilai 0
+     - Total SKS yang diajar dosen harus kurang dari atau sama dengan 12
 
-- **Tujuan:** Menerapkan batasan untuk setiap dosen dalam sistem
-- **Alasan Penggunaan `all`:** Kebijakan beban kerja berlaku tanpa pengecualian
-- **Cakupan:** Memeriksa beban kerja setiap dosen secara individual
+### 5.8 Fact BatasanNilai
 
-**Step 3: Penghitungan Mata Kuliah `#{mk: MataKuliah | mk.diajarOleh = d}`**
+```alloy
+fact BatasanNilai {
+    all m: Mahasiswa | m.nilai.univ in m.mengambil
+}
+```
 
-- **Tujuan:** Menghitung jumlah mata kuliah yang diajarkan seorang dosen
-- **Mekanisme Set Comprehension:** Memfilter mata kuliah berdasarkan dosen pengajar
-- **Logika Filter:** Memilih mata kuliah yang field diajarOleh-nya sama dengan dosen d
-- **Pengukuran:** Operator # menghitung jumlah elemen set hasil filter
+**Penjelasan Step-by-Step:**
 
-**Step 4: Constraint Total SKS**
+1. **`fact BatasanNilai`**: Mendeklarasikan fact untuk batasan nilai
+2. **`all m: Mahasiswa`**: Untuk setiap mahasiswa
+3. **`m.nilai.univ in m.mengambil`**:
+   - **`m.nilai.univ`**: Domain dari relasi nilai mahasiswa (mata kuliah yang memiliki nilai)
+   - **`in m.mengambil`**: Subset dari mata kuliah yang diambil
+   - Memastikan mahasiswa hanya memiliki nilai untuk mata kuliah yang diambil
+4. **Purpose**: Menjaga integritas data nilai - tidak boleh ada nilai untuk mata kuliah yang tidak diambil
 
-- **Tujuan:** Membatasi total beban SKS yang diajarkan oleh seorang dosen
-- **Alasan Penggunaan `sum`:** Menjumlahkan SKS dari semua mata kuliah yang diajarkan
-- **Sintaks Conditional:** `mk.diajarOleh = d => mk.sks else 0` hanya menambahkan SKS jika dosen mengajar mata kuliah
-- **Batas Spesifik:** Maksimal 12 SKS per dosen per semester
-- **Dampak Kebijakan:** Memastikan beban kerja yang seimbang dan berkelanjutan
+## 6. Predicates dan Functions
 
-### Fitur Lanjutan
+### 6.1 Predicate registrasiValid
 
-#### 1. Fungsi Perhitungan IPK
+```alloy
+pred registrasiValid[m: Mahasiswa] {
+    // Mahasiswa tidak mengambil lebih dari 5 mata kuliah
+    #(m.mengambil) <= 5
 
-Fungsi ini menghitung IPK mahasiswa berdasarkan nilai dan SKS mata kuliah:
+    // Semua prasyarat terpenuhi
+    all mk: m.mengambil | all pr: mk.prasyarat | pr in m.mengambil
+
+    // Maksimum SKS per semester
+    (sum mk: m.mengambil | mk.sks) <= 24
+}
+```
+
+**Penjelasan Step-by-Step:**
+
+1. **`pred registrasiValid[m: Mahasiswa]`**:
+
+   - Mendeklarasikan predicate dengan nama "registrasiValid"
+   - Parameter: satu mahasiswa (`m: Mahasiswa`)
+
+2. **Constraint pertama - Batas jumlah mata kuliah**:
+
+   - **`#(m.mengambil) <= 5`**:
+     - **`#`**: Operator cardinality (menghitung jumlah elemen)
+     - Mahasiswa tidak boleh mengambil lebih dari 5 mata kuliah
+
+3. **Constraint kedua - Validasi prasyarat**:
+
+   - **`all mk: m.mengambil | all pr: mk.prasyarat | pr in m.mengambil`**:
+     - **Nested universal quantification** - untuk setiap mata kuliah yang diambil dan setiap prasyaratnya
+     - Semua prasyarat harus sudah diambil oleh mahasiswa
+
+4. **Constraint ketiga - Batas SKS**:
+   - **`(sum mk: m.mengambil | mk.sks) <= 24`**:
+     - **`sum`**: Operator agregasi untuk menjumlahkan nilai
+     - Total SKS mata kuliah yang diambil tidak boleh melebihi 24
+
+### 6.2 Predicate prioritasRegistrasi
+
+```alloy
+pred prioritasRegistrasi[m1, m2: Mahasiswa] {
+    m1.semester > m2.semester or
+    (m1.semester = m2.semester and m1.ipk > m2.ipk)
+}
+```
+
+**Penjelasan Step-by-Step:**
+
+1. **`pred prioritasRegistrasi[m1, m2: Mahasiswa]`**:
+
+   - Mendeklarasikan predicate dengan nama "prioritasRegistrasi"
+   - Parameters: dua mahasiswa (`m1, m2: Mahasiswa`)
+
+2. **Kondisi prioritas**:
+
+   - **`m1.semester > m2.semester`**: Mahasiswa dengan semester lebih tinggi memiliki prioritas
+   - **`or`**: Operator disjunction (OR) - salah satu kondisi harus benar
+   - **`(m1.semester = m2.semester and m1.ipk > m2.ipk)`**:
+     - Jika semester sama, mahasiswa dengan IPK lebih tinggi memiliki prioritas
+     - **`and`**: Operator conjunction (AND) - kedua kondisi harus benar
+
+3. **Purpose**: Menentukan prioritas antara dua mahasiswa untuk keperluan registrasi atau daftar tunggu
+
+### 6.3 Function mataKuliahPerDepartemen
+
+```alloy
+fun mataKuliahPerDepartemen[d: Departemen]: set MataKuliah {
+    {mk: MataKuliah | mk.diajarOleh.departemen = d}
+}
+```
+
+**Penjelasan Step-by-Step:**
+
+1. **`fun mataKuliahPerDepartemen[d: Departemen]: set MataKuliah`**:
+
+   - Mendeklarasikan function dengan nama "mataKuliahPerDepartemen"
+   - Parameter: satu departemen (`d: Departemen`)
+   - Return type: `set MataKuliah` - mengembalikan set mata kuliah
+
+2. **Body function**:
+
+   - **`{mk: MataKuliah | mk.diajarOleh.departemen = d}`**:
+     - **Set comprehension**: Membuat set mata kuliah yang memenuhi kondisi
+     - **`mk.diajarOleh.departemen = d`**: Mata kuliah yang diajarkan oleh dosen dari departemen d
+     - **Chain navigation**: `mk` → `diajarOleh` (dosen) → `departemen`
+
+3. **Purpose**: Mendapatkan semua mata kuliah yang diajarkan oleh dosen dari departemen tertentu
+
+### 6.4 Function hitungIPK
 
 ```alloy
 fun hitungIPK[m: Mahasiswa]: Int {
@@ -512,353 +616,423 @@ fun hitungIPK[m: Mahasiswa]: Int {
             let sksA = sum mk: {mk: mksWithGrades | m.nilai[mk] = A} | mk.sks,
                 sksB = sum mk: {mk: mksWithGrades | m.nilai[mk] = B} | mk.sks,
                 sksC = sum mk: {mk: mksWithGrades | m.nilai[mk] = C} | mk.sks,
-                sksD = sum mk: {mk: mksWithGrades | m.nilai[mk] = D} | mk.sks,
-                totalPoints = add[add[add[mul[sksA, 4], mul[sksB, 3]], mul[sksC, 2]], sksD] |
+                sksD = sum mk: {mk: mksWithGrades | m.nilai[mk] = D} | mk.sks |
 
-            // Hitung IPK dengan format integer (350 = 3.50)
-            div[mul[totalPoints, 100], totalSKS]
+            let totalPoints = add[add[add[mul[sksA, 4], mul[sksB, 3]], mul[sksC, 2]], sksD] |
+                // Hitung IPK dengan format integer (350 = 3.50)
+                div[mul[totalPoints, 100], totalSKS]
         )
     )
 }
 ```
 
-**Penjelasan Algoritma IPK:**
+**Penjelasan Step-by-Step:**
 
-1. Mengidentifikasi mata kuliah yang memiliki nilai
-2. Menghitung total SKS dari mata kuliah tersebut
-3. Menghitung total poin dengan bobot: A=4, B=3, C=2, D=1, E=0
-4. Formula: IPK = (Total Poin × 100) ÷ Total SKS
-5. Hasil dalam format integer (contoh: 350 untuk IPK 3.50)
+1. **`fun hitungIPK[m: Mahasiswa]: Int`**:
 
-#### 2. Sistem Prioritas Registrasi
+   - Mendeklarasikan function dengan nama "hitungIPK"
+   - Parameter: satu mahasiswa (`m: Mahasiswa`)
+   - Return type: `Int` - mengembalikan nilai integer (untuk IPK dikalikan 100)
 
-```alloy
-pred prioritasRegistrasi[m1, m2: Mahasiswa] {
-    // Mahasiswa senior memiliki prioritas lebih tinggi
-    m1.semester > m2.semester or
-    // Jika semester sama, yang IPK lebih tinggi diprioritaskan
-    (m1.semester = m2.semester and m1.ipk > m2.ipk)
-}
-```
+2. **Let Expression untuk mata kuliah dengan nilai**:
 
-#### 3. Validasi Registrasi
+   - **`let mksWithGrades = {mk: m.mengambil | some m.nilai[mk]} |`**:
+     - **`let`**: Keyword untuk binding variabel lokal
+     - **Set comprehension**: Mata kuliah yang diambil DAN memiliki nilai
+     - **`some m.nilai[mk]`**: Memfilter mata kuliah yang memiliki nilai
 
-```alloy
-pred registrasiValid[m: Mahasiswa] {
-    // Mahasiswa tidak mengambil lebih dari 5 mata kuliah
-    #(m.mengambil) <= 5
+3. **Conditional Return - Jika tidak ada mata kuliah dengan nilai**:
 
-    // Semua prasyarat terpenuhi
-    all mk: m.mengambil | all pr: mk.prasyarat | pr in m.mengambil
+   - **`#mksWithGrades = 0 => 0 else (...)`**:
+     - **`=>`**: Operator if-then
+     - Jika tidak ada mata kuliah dengan nilai, IPK = 0
 
-    // Maksimum SKS per semester adalah 24
-    (sum mk: m.mengambil | mk.sks) <= 24
-}
-```
+4. **Let Expression untuk total SKS**:
 
-**PENJELASAN STEP-BY-STEP:**
+   - **`let totalSKS = sum mk: mksWithGrades | mk.sks |`**:
+     - **`sum`**: Operator agregasi untuk menjumlahkan nilai
+     - Menjumlahkan SKS dari semua mata kuliah yang memiliki nilai
 
-**Step 1: Batas Jumlah Mata Kuliah `#(m.mengambil) <= 5`**
+5. **Conditional Return - Jika total SKS = 0**:
 
-- **Tujuan:** Mencegah mahasiswa mengambil terlalu banyak mata kuliah dalam satu semester
-- **Alasan Batasan:** Mata kuliah membutuhkan waktu dan energi; terlalu banyak mata kuliah dapat menurunkan kualitas pembelajaran
-- **Implementasi Teknis:** Menggunakan operator `#` untuk menghitung jumlah mata kuliah dalam set `m.mengambil`
-- **Dampak Bisnis:** Memastikan mahasiswa fokus pada beberapa mata kuliah dan mencapai hasil maksimal
+   - **`totalSKS = 0 => 0 else (...)`**:
+     - Guard clause untuk menghindari division by zero
+     - Jika total SKS = 0, kembalikan 0
 
-**Step 2: Validasi Prasyarat `all mk: m.mengambil | all pr: mk.prasyarat | pr in m.mengambil`**
+6. **Let Expression untuk SKS per kategori nilai**:
 
-- **Tujuan:** Memastikan mahasiswa telah mengambil semua mata kuliah prasyarat
-- **Alasan Pedagogis:** Materi kuliah sering bersifat sekuensial; konsep dasar diperlukan sebelum konsep lanjutan
-- **Implementasi Teknis:** Nested quantifier (`all`) untuk memeriksa seluruh prasyarat (`pr`) dari setiap mata kuliah yang diambil (`mk`)
-- **Logika Validasi:** `pr in m.mengambil` memeriksa apakah prasyarat terdapat dalam set mata kuliah yang diambil
-- **Dampak Akademik:** Mencegah mahasiswa mengambil mata kuliah tanpa fondasi pengetahuan yang cukup
+   - **`let sksA = sum mk: {mk: mksWithGrades | m.nilai[mk] = A} | mk.sks,`**:
+     - Total SKS mata kuliah dengan nilai A
+   - **`sksB, sksC, sksD`**: Total SKS untuk mata kuliah dengan nilai B, C, D
+   - Mata kuliah dengan nilai E tidak dihitung (memiliki poin 0)
 
-**Step 3: Batas SKS `(sum mk: m.mengambil | mk.sks) <= 24`**
+7. **Let Expression untuk total poin**:
 
-- **Tujuan:** Membatasi beban studi mahasiswa dalam satu semester
-- **Alasan Akademik:** Standar beban studi maksimal sesuai dengan regulasi pendidikan tinggi di Indonesia
-- **Implementasi Teknis:** Operator `sum` untuk menghitung total SKS dari semua mata kuliah yang diambil
-- **Mekanisme Kerja:** Untuk setiap mata kuliah dalam `m.mengambil`, jumlahkan nilai field `sks`
-- **Dampak Administratif:** Memastikan kepatuhan terhadap aturan akademik dan mencegah overload mahasiswa
+   - **`let totalPoints = add[add[add[mul[sksA, 4], mul[sksB, 3]], mul[sksC, 2]], sksD] |`**:
+     - **`mul[sksA, 4]`**: SKS dengan nilai A × 4 poin
+     - **`mul[sksB, 3]`**: SKS dengan nilai B × 3 poin
+     - **`mul[sksC, 2]`**: SKS dengan nilai C × 2 poin
+     - **`sksD`**: SKS dengan nilai D × 1 poin (implisit)
+     - **`add`**: Fungsi untuk penjumlahan
 
-## Testing dan Validasi
+8. **Perhitungan IPK final**:
+   - **`div[mul[totalPoints, 100], totalSKS]`**:
+     - **`mul[totalPoints, 100]`**: Mengalikan total poin dengan 100 untuk format integer
+     - **`div[..., totalSKS]`**: Membagi dengan total SKS
+     - Hasil: 350 = IPK 3.50, 400 = IPK 4.00, dll.
 
-### Assertion untuk Validasi Model
+## 7. Assertions
+
+### 7.1 Assertion IPKCalculationValid
 
 ```alloy
-// Validasi perhitungan IPK
 assert IPKCalculationValid {
+    // IPK yang dihitung harus dalam rentang yang wajar (0-400 untuk skala 4.00)
     all m: Mahasiswa | hitungIPK[m] >= 0 and hitungIPK[m] <= 400
 }
+```
 
-// Validasi penegakan prasyarat
+**Penjelasan Step-by-Step:**
+
+1. **`assert IPKCalculationValid`**: Mendeklarasikan assertion dengan nama "IPKCalculationValid"
+2. **`all m: Mahasiswa`**: Universal quantification - untuk setiap mahasiswa
+3. **`hitungIPK[m] >= 0 and hitungIPK[m] <= 400`**:
+   - IPK yang dihitung tidak boleh negatif
+   - IPK tidak boleh melebihi 400 (4.00)
+   - **`and`**: Keduanya harus terpenuhi
+4. **Purpose**: Memverifikasi bahwa fungsi hitungIPK menghasilkan nilai yang masuk akal
+
+### 7.2 Assertion PrerequisitesEnforced
+
+```alloy
 assert PrerequisitesEnforced {
-    all m: Mahasiswa, mk: m.mengambil |
-        all prereq: mk.prasyarat | prereq in m.mengambil
+    // Jika mahasiswa mengambil mata kuliah dan registrasi valid, semua prasyaratnya harus dipenuhi
+    all m: Mahasiswa | registrasiValid[m] implies
+        all mk: m.mengambil, prereq: mk.prasyarat | prereq in m.mengambil
 }
+```
 
-// Validasi tidak ada konflik ruangan
+**Penjelasan Step-by-Step:**
+
+1. **`assert PrerequisitesEnforced`**: Mendeklarasikan assertion untuk memeriksa penegakan prasyarat
+2. **`all m: Mahasiswa`**: Untuk setiap mahasiswa
+3. **`registrasiValid[m] implies`**:
+   - **`implies`**: Operator implikasi logika (jika... maka...)
+   - Jika registrasi mahasiswa valid, maka...
+4. **`all mk: m.mengambil, prereq: mk.prasyarat | prereq in m.mengambil`**:
+   - **Multi-variable universal quantification**: Untuk setiap mata kuliah yang diambil dan setiap prasyaratnya
+   - **`prereq in m.mengambil`**: Prasyarat harus termasuk dalam mata kuliah yang diambil
+5. **Purpose**: Memverifikasi bahwa mahasiswa dengan registrasi valid selalu memenuhi semua prasyarat
+
+### 7.3 Assertion NoRoomConflicts
+
+```alloy
 assert NoRoomConflicts {
+    // Tidak ada dua mata kuliah yang menggunakan ruangan yang sama pada waktu yang sama
     all disj mk1, mk2: MataKuliah |
         mk1.ruangan = mk2.ruangan => no (mk1.jadwal & mk2.jadwal)
 }
+```
 
-// Validasi konsistensi daftar tunggu
+**Penjelasan Step-by-Step:**
+
+1. **`assert NoRoomConflicts`**: Mendeklarasikan assertion untuk memeriksa konflik ruangan
+2. **`all disj mk1, mk2: MataKuliah`**:
+   - Untuk setiap pasangan mata kuliah berbeda
+   - **`disj`**: Memastikan mk1 dan mk2 adalah mata kuliah yang berbeda
+3. **`mk1.ruangan = mk2.ruangan => no (mk1.jadwal & mk2.jadwal)`**:
+   - **`=>`**: Operator implikasi (jika... maka...)
+   - Jika dua mata kuliah menggunakan ruangan yang sama
+   - **`no (mk1.jadwal & mk2.jadwal)`**: Tidak boleh ada slot waktu yang sama
+4. **Purpose**: Memverifikasi bahwa tidak ada konflik penggunaan ruangan
+
+### 7.4 Assertion WaitlistConsistency
+
+```alloy
 assert WaitlistConsistency {
+    // Mahasiswa di daftar tunggu tidak sedang mengambil mata kuliah tersebut
     all mk: MataKuliah, m: Mahasiswa |
         m in elems[mk.daftarTunggu] => mk not in m.mengambil
 }
 ```
 
-### Predicate untuk Skenario Testing
+**Penjelasan Step-by-Step:**
+
+1. **`assert WaitlistConsistency`**: Mendeklarasikan assertion untuk memeriksa konsistensi daftar tunggu
+2. **`all mk: MataKuliah, m: Mahasiswa`**: Untuk setiap mata kuliah dan setiap mahasiswa
+3. **`m in elems[mk.daftarTunggu] => mk not in m.mengambil`**:
+   - **`elems[mk.daftarTunggu]`**: Mengambil elemen-elemen dalam sequence daftar tunggu
+   - **`=>`**: Jika mahasiswa dalam daftar tunggu mata kuliah
+   - **`mk not in m.mengambil`**: Maka mahasiswa tidak boleh mengambil mata kuliah tersebut
+4. **Purpose**: Memverifikasi bahwa mahasiswa tidak bisa sekaligus mengambil mata kuliah dan berada di daftar tunggu
+
+### 7.5 Assertion GradeConsistency
 
 ```alloy
-// Skenario mahasiswa dengan nilai
-pred studentWithGrades[m: Mahasiswa] {
-    #m.mengambil >= 3
-    #{mk: m.mengambil | some m.nilai[mk]} >= 2
-    some mk: m.mengambil | m.nilai[mk] = A
-    some mk: m.mengambil | m.nilai[mk] = B
-}
-
-// Skenario mata kuliah dengan kapasitas penuh
-pred fullCapacityCourse[mk: MataKuliah] {
-    #{m: Mahasiswa | mk in m.mengambil} = mk.kapasitas
-    #mk.daftarTunggu > 0
-}
-
-// Skenario penjadwalan kompleks
-pred complexScheduling {
-    #MataKuliah >= 5
-    #Ruangan >= 3
-    #SlotWaktu >= 4
-    some mk: MataKuliah | #mk.jadwal > 1
+assert GradeConsistency {
+    // Mahasiswa hanya memiliki nilai untuk mata kuliah yang diambil
+    all m: Mahasiswa | m.nilai.univ in m.mengambil
 }
 ```
 
-## Panduan Eksekusi
+**Penjelasan Step-by-Step:**
 
-### Commands untuk Testing
+1. **`assert GradeConsistency`**: Mendeklarasikan assertion untuk memeriksa konsistensi nilai
+2. **`all m: Mahasiswa`**: Untuk setiap mahasiswa
+3. **`m.nilai.univ in m.mengambil`**:
+   - **`m.nilai.univ`**: Domain dari relasi nilai (mata kuliah yang memiliki nilai)
+   - **`in m.mengambil`**: Subset dari mata kuliah yang diambil mahasiswa
+4. **Purpose**: Memverifikasi bahwa mahasiswa hanya memiliki nilai untuk mata kuliah yang diambil
 
-#### 1. Testing Dasar
+### 7.6 Assertion InstructorWorkloadValid
 
 ```alloy
-// Mencari instance valid untuk registrasi
-run registrasiValid for 4 but 5 Int
-
-// Memvalidasi assertion IPK
-check IPKCalculationValid for 4 but 5 Int
+assert InstructorWorkloadValid {
+    // Beban kerja dosen tidak melebihi batas
+    all d: Dosen |
+        #{mk: MataKuliah | mk.diajarOleh = d} <= 3 and
+        (sum mk: MataKuliah | mk.diajarOleh = d => mk.sks else 0) <= 12
+}
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Run Command untuk Validasi Registrasi**
+1. **`assert InstructorWorkloadValid`**: Mendeklarasikan assertion untuk memeriksa beban kerja dosen
+2. **`all d: Dosen`**: Untuk setiap dosen
+3. **`#{mk: MataKuliah | mk.diajarOleh = d} <= 3`**:
+   - Jumlah mata kuliah yang diajar dosen tidak lebih dari 3
+4. **`and`**: Kedua kondisi harus dipenuhi
+5. **`(sum mk: MataKuliah | mk.diajarOleh = d => mk.sks else 0) <= 12`**:
+   - Total SKS yang diajar dosen tidak lebih dari 12
+6. **Purpose**: Memverifikasi bahwa beban kerja dosen sesuai dengan batasan yang ditetapkan
 
-- **Tujuan:** Mencari instance model yang memenuhi semua batasan dalam `registrasiValid`
-- **Alasan Penggunaan `run`:** Command `run` mencari contoh yang memenuhi predicate, berbeda dengan `check` yang mencari counterexample
-- **Mekanisme Kerja:** Alloy Analyzer akan mencoba menghasilkan status mahasiswa, mata kuliah, dan relasi yang memenuhi semua batasan
-- **Hasil yang Diharapkan:** Mendapatkan contoh konkrit mahasiswa yang memiliki registrasi valid
+## 8. Run Commands
 
-**Step 2: Parameter Scope `for 4 but 5 Int`**
-
-- **Tujuan:** Mengoptimalkan antara eksplorasi yang memadai dan performa analisis
-- **Alasan `for 4`:** Membatasi maksimal 4 instance untuk setiap signature (Mahasiswa, MataKuliah, dll)
-- **Alasan `but 5 Int`:** Mengizinkan 5 nilai integer berbeda untuk SKS, kapasitas, IPK, dll
-- **Dampak Teknis:** Membatasi ruang pencarian untuk Alloy Analyzer, membuat analisis lebih feasible
-
-**Step 3: Check Command untuk Validasi IPK**
-
-- **Tujuan:** Memverifikasi bahwa fungsi `hitungIPK` selalu menghasilkan nilai dalam rentang yang valid
-- **Alasan Penggunaan `check`:** Command `check` mencari counterexample yang melanggar assertion
-- **Proses Verifikasi:** Alloy mencoba menemukan kasus dimana `hitungIPK[m] < 0` atau `hitungIPK[m] > 400`
-- **Interpretasi Hasil:** Jika tidak ada counterexample, assertion terbukti valid dalam scope yang ditentukan
-
-#### 2. Testing Skenario Spesifik
+### 8.1 Basic Run Commands
 
 ```alloy
-// Testing mahasiswa dengan nilai
-run studentWithGrades for 4 but 5 Int
-
-// Testing mata kuliah penuh
-run fullCapacityCourse for 4 but 5 Int
-
-// Testing penjadwalan kompleks
-run complexScheduling for 5 but 6 Int
+run { some Mahasiswa } for 5 but 6 Int //apakah bisa membuat mahasiswa
+run { some MataKuliah } for 5 but 6 Int // Memperbesar scope untuk memungkinkan instance ditemukan
+run { some m: Mahasiswa | some m.mengambil } for 5 but 6 Int // Memastikan mahasiswa mengambil setidaknya satu mata kuliah
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Testing Mahasiswa dengan Nilai**
+1. **`run { some Mahasiswa }`**:
 
-- **Tujuan:** Memverifikasi model dapat merepresentasikan mahasiswa dengan beberapa nilai berbeda
-- **Alasan Skenario:** Penting untuk validasi fungsi perhitungan IPK dan kebijakan akademik
-- **Kriteria Pengujian:** Mahasiswa memiliki setidaknya 3 mata kuliah, minimal 2 dengan nilai, termasuk nilai A dan B
-- **Manfaat Bisnis:** Memastikan model dapat menangani evaluasi kinerja akademik mahasiswa
+   - **Run command**: Meminta Alloy untuk mencari instance yang memenuhi formula
+   - **`some Mahasiswa`**: Ada setidaknya satu mahasiswa dalam model
+   - **Purpose**: Memverifikasi bahwa model bisa membuat instance mahasiswa
 
-**Step 2: Testing Mata Kuliah dengan Kapasitas Penuh**
+2. **`for 5 but 6 Int`**:
 
-- **Tujuan:** Memverifikasi model dapat menangani skenario batas kapasitas dan daftar tunggu
-- **Alasan Skenario:** Situasi kapasitas penuh sering terjadi dan perlu dikelola dengan tepat
-- **Kriteria Pengujian:** Mata kuliah terisi penuh (jumlah mahasiswa = kapasitas) dan memiliki daftar tunggu
-- **Dampak Operasional:** Memastikan sistem dapat menangani batasan kapasitas fisik dan kebijakan waitlist
+   - **`for 5`**: Scope 5 - maksimal 5 atom untuk setiap signature
+   - **`but 6 Int`**: Override bitwidth integer menjadi 6 bit
+   - **Bitwidth 6**: Range integer -32 sampai 31
 
-**Step 3: Testing Penjadwalan Kompleks**
+3. **`run { some MataKuliah }`**:
 
-- **Tujuan:** Memverifikasi model dapat menangani skenario penjadwalan yang lebih rumit
-- **Alasan Peningkatan Scope:** `for 5 but 6 Int` memberikan lebih banyak ruang untuk membuat jadwal kompleks
-- **Kriteria Pengujian:** Minimal 5 mata kuliah, 3 ruangan, 4 slot waktu, dan ada mata kuliah dengan multiple slot
-- **Manfaat Praktis:** Memastikan model dapat menangani kompleksitas penjadwalan di dunia nyata
+   - Memverifikasi bisa membuat instance mata kuliah
 
-#### 3. Testing Fungsi IPK
+4. **`run { some m: Mahasiswa | some m.mengambil }`**:
+   - Memverifikasi bisa membuat mahasiswa yang mengambil setidaknya satu mata kuliah
+
+### 8.2 Run Commands dengan Predicate
 
 ```alloy
-// Mencari mahasiswa dengan IPK > 0
-run { some m: Mahasiswa | hitungIPK[m] > 0 } for 4 but 5 Int
+run { some m: Mahasiswa | registrasiValid[m] } for 6 but 6 Int //melihat instance registrasi yang valid - scope diperbesar
+```
 
-// Membandingkan IPK mahasiswa
+**Penjelasan:**
+
+- Mencari instance di mana ada mahasiswa dengan registrasi valid
+- Menggunakan predicate `registrasiValid` yang didefinisikan sebelumnya
+- Scope diperbesar menjadi 6 untuk menemukan instance yang valid
+
+### 8.3 Run Commands untuk Testing Scenario
+
+```alloy
+run studentWithGrades for 4 but 5 Int //scenario dengan mahasiswa yang memiliki nilai
+run fullCapacityCourse for 4 but 5 Int //scenario dengan mata kuliah penuh
+run complexScheduling for 5 but 6 Int //scenario penjadwalan kompleks
+```
+
+**Penjelasan:**
+
+1. **`run studentWithGrades`**:
+
+   - Menggunakan predicate studentWithGrades (didefinisikan di bagian lain)
+   - Mencari mahasiswa dengan nilai A dan B untuk beberapa mata kuliah
+
+2. **`run fullCapacityCourse`**:
+
+   - Mencari mata kuliah dengan kapasitas penuh dan daftar tunggu
+
+3. **`run complexScheduling`**:
+   - Mencari skenario penjadwalan dengan banyak mata kuliah dan ruangan
+
+### 8.4 Complex Run Commands
+
+```alloy
 run {
-    some m1, m2: Mahasiswa |
-        hitungIPK[m1] > hitungIPK[m2] and
-        hitungIPK[m1] > 300
-} for 4 but 5 Int
+    some m: Mahasiswa |
+        some mk: m.mengambil | some m.nilai[mk] and m.ipk > 0
+} for 6 but 7 Int // Test fungsi hitungIPK dengan target yang lebih realistis
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Step-by-Step:**
 
-**Step 1: Testing Mahasiswa dengan IPK Positif**
-
-- **Tujuan:** Memastikan model dapat menghasilkan mahasiswa dengan nilai yang dapat dihitung menjadi IPK
-- **Alasan Inline Predicate:** Menggunakan expression langsung untuk kasus pengujian spesifik tanpa mendefinisikan predicate terpisah
-- **Logika Query:** `some m: Mahasiswa` mencari minimal satu mahasiswa yang memenuhi kriteria
-- **Hasil Ekspektasi:** Menemukan mahasiswa yang telah menyelesaikan mata kuliah dengan nilai, menghasilkan IPK > 0
-
-**Step 2: Testing Perbandingan IPK**
-
-- **Tujuan:** Verifikasi bahwa model dapat membedakan dan membandingkan IPK antar mahasiswa
-- **Alasan Testing Perbandingan:** Penting untuk fitur perankingan dan prioritas registrasi berdasarkan IPK
-- **Kriteria Kompleks:** Mencari dua mahasiswa berbeda dengan selisih IPK, dimana satu memiliki IPK > 3.0
-- **Manfaat Akademik:** Memastikan model dapat menangani evaluasi perbandingan performa akademik
-
-**Step 3: Penggunaan Angka 300 sebagai Threshold**
-
-- **Tujuan:** Menetapkan batas minimal IPK yang bermakna (3.00) untuk testing
-- **Alasan Format Integer:** 300 merepresentasikan IPK 3.00 dalam format integer yang digunakan model
-- **Signifikansi Akademik:** IPK 3.00 sering menjadi batas kualifikasi untuk berbagai program akademik
-- **Konsekuensi Testing:** Memverifikasi model dapat menghasilkan mahasiswa dengan performa akademik baik
-
-#### 4. Comprehensive Testing
+1. **`some m: Mahasiswa`**: Ada setidaknya satu mahasiswa
+2. **`some mk: m.mengambil`**: Mahasiswa mengambil setidaknya satu mata kuliah
+3. **`some m.nilai[mk]`**: Mahasiswa memiliki nilai untuk mata kuliah tersebut
+4. **`and m.ipk > 0`**: IPK mahasiswa lebih dari 0 (artinya berhasil dihitung)
+5. **Purpose**: Menguji fungsi hitungIPK dengan data realistis
 
 ```alloy
-// Testing dengan multiple constraints
 run {
     #Mahasiswa >= 3
     #MataKuliah >= 4
     #Dosen >= 2
     some m: Mahasiswa | #m.mengambil >= 3
     some mk: MataKuliah | #{m: Mahasiswa | mk in m.mengambil} > 1
-} for 5 but 6 Int
+} for 5 but 6 Int //Comprehensive test dengan banyak constraints
 ```
 
-**PENJELASAN STEP-BY-STEP:**
+**Penjelasan Multi-constraints:**
 
-**Step 1: Penentuan Ukuran Minimal Universe**
+1. Minimal 3 mahasiswa dalam model
+2. Minimal 4 mata kuliah
+3. Minimal 2 dosen
+4. Setidaknya ada mahasiswa yang mengambil 3 mata kuliah atau lebih
+5. Setidaknya ada mata kuliah yang diambil oleh lebih dari 1 mahasiswa
 
-- **Tujuan:** Memastikan model memiliki cukup elemen untuk testing komprehensif
-- **Alasan Multiple Constraints:** Mendefinisikan batas bawah untuk jumlah entitas dalam model
-- **Implementasi Kardinalitas:** `#Mahasiswa >= 3`, `#MataKuliah >= 4`, `#Dosen >= 2`
-- **Manfaat Testing:** Memverifikasi model dengan populasi yang lebih realistis
+## 9. Check Commands
 
-**Step 2: Constraint Beban Studi**
+```alloy
+check IPKCalculationValid for 5 but 6 Int //Check IPK calculation validity
+check PrerequisitesEnforced for 5 but 6 Int //Check prerequisites enforcement dengan scope lebih besar
+check NoRoomConflicts for 4 but 5 Int  //Check room conflicts
+check WaitlistConsistency for 4 but 5 Int //Check waitlist consistency
+check GradeConsistency for 4 but 5 Int //Check grade consistency
+check InstructorWorkloadValid for 4 but 5 Int //Check instructor workload
+```
 
-- **Tujuan:** Memastikan model mencakup mahasiswa dengan beban studi representatif
-- **Alasan Constraint:** `some m: Mahasiswa | #m.mengambil >= 3` mencari mahasiswa yang mengambil minimal 3 mata kuliah
-- **Signifikansi Akademik:** 3 mata kuliah merepresentasikan beban studi normal/minimal
-- **Kontribusi Testing:** Memverifikasi model dapat menangani mahasiswa dengan multiple mata kuliah
+**Penjelasan Step-by-Step:**
 
-**Step 3: Constraint Popularitas Mata Kuliah**
+1. **`check IPKCalculationValid for 5 but 6 Int`**:
 
-- **Tujuan:** Memastikan model mencakup mata kuliah yang diambil oleh multiple mahasiswa
-- **Alasan Constraint:** `some mk: MataKuliah | #{m: Mahasiswa | mk in m.mengambil} > 1`
-- **Logika Implementasi:** Mencari mata kuliah yang diambil oleh lebih dari satu mahasiswa
-- **Dampak Testing:** Memverifikasi model dapat menangani mata kuliah populer dan berbagi sumber daya
+   - **`check`**: Command untuk mencari counterexample dari assertion
+   - **`IPKCalculationValid`**: Assertion yang diperiksa (IPK harus dalam range yang valid)
+   - **`for 5 but 6 Int`**: Scope 5 dengan bitwidth integer 6
+   - **Purpose**: Memeriksa apakah fungsi hitungIPK selalu menghasilkan nilai dalam rentang yang valid
 
-**Step 4: Peningkatan Scope**
+2. **`check PrerequisitesEnforced for 5 but 6 Int`**:
 
-- **Tujuan:** Memberikan ruang yang cukup untuk memenuhi semua constraints
-- **Alasan `for 5 but 6 Int`:** Scope yang lebih besar diperlukan untuk testing komprehensif
-- **Trade-off:** Waktu eksekusi lebih lama, tetapi hasil lebih representatif
-- **Best Practice:** Comprehensive testing sebaiknya menggunakan scope lebih besar dari testing dasar
+   - Memeriksa apakah prasyarat selalu dipenuhi ketika registrasi valid
+   - Menggunakan scope yang lebih besar (5) untuk verifikasi yang lebih kuat
 
-### Parameter Scope Explanation
+3. **`check NoRoomConflicts for 4 but 5 Int`**:
 
-- `for 4`: Maksimal 4 instance per signature
-- `but 5 Int`: Maksimal 5 nilai integer berbeda yang dapat digunakan
-- Scope yang lebih besar = lebih banyak kemungkinan instance, tapi waktu eksekusi lebih lama
+   - Memeriksa tidak ada konflik penggunaan ruangan
+   - Scope 4 dengan bitwidth 5
 
-**PENJELASAN TEKNIS:**
+4. **`check WaitlistConsistency for 4 but 5 Int`**:
 
-**1. Signifikansi Scope dalam Alloy**
+   - Memeriksa konsistensi daftar tunggu
+   - Memastikan mahasiswa tidak bisa berada di daftar tunggu mata kuliah yang diambil
 
-- **Tujuan:** Membatasi ruang pencarian untuk analisis yang feasible
-- **Alasan Batasan:** Tanpa batasan, ruang pencarian menjadi tak terhingga
-- **Implikasi:** Hasil analisis hanya valid dalam scope yang ditentukan
-- **Trade-off:** Scope kecil = analisis cepat tapi kurang komprehensif; scope besar = analisis lambat tapi lebih akurat
+5. **`check GradeConsistency for 4 but 5 Int`**:
 
-**2. Parameter `for N`**
+   - Memeriksa mahasiswa hanya memiliki nilai untuk mata kuliah yang diambil
 
-- **Tujuan:** Membatasi jumlah maksimal instance untuk setiap signature
-- **Mekanisme:** Alloy akan mengeksplorasi model dengan 0 hingga N instance setiap signature
-- **Contoh Praktis:** `for 4` berarti maksimal 4 mahasiswa, 4 mata kuliah, 4 dosen, dst.
-- **Optimisasi:** Pilih nilai N yang cukup untuk representasi sistem tapi masih komputasional
+6. **`check InstructorWorkloadValid for 4 but 5 Int`**:
+   - Memeriksa beban kerja dosen sesuai batasan
 
-**3. Parameter `but N Int`**
+## 10. Tips Debugging dan Troubleshooting
 
-- **Tujuan:** Mengatur batasan khusus untuk jenis Int (bilangan bulat)
-- **Alasan Pemisahan:** Integer memerlukan penanganan khusus karena sifat range numerik
-- **Mekanisme:** Alloy akan menggunakan integer dari -N+1 hingga N-1
-- **Contoh:** `but 5 Int` menggunakan bilangan bulat dari -4 hingga 4
+### 10.1 Mengatasi "No Instance Found"
 
-### Tips Debugging
+Ketika run command gagal menemukan instance:
 
-1. **Mulai dengan scope kecil** (`for 3`) untuk debugging cepat
-2. **Gunakan assertion** untuk memvalidasi properti model
-3. **Jalankan predicate spesifik** untuk menguji skenario tertentu
-4. **Visualisasi hasil** di Alloy Analyzer untuk memahami instance yang ditemukan
-5. **Iterasi perbaikan** berdasarkan counterexample yang ditemukan
+1. **Peningkatan Scope**: Tingkatkan nilai scope dan bitwidth
 
-**PENJELASAN TIPS DEBUGGING:**
+   ```alloy
+   run predicate for 6 but 7 Int
+   ```
 
-**Tip 1: Mulai dengan Scope Kecil**
+2. **Analisis Constraints**:
 
-- **Tujuan:** Mempercepat iterasi awal debugging
-- **Alasan Strategi:** Scope kecil menghasilkan contoh minimal yang lebih mudah dipahami
-- **Implementasi Praktis:** Mulai dengan `for 3 but 4 Int` untuk debugging awal
-- **Eskalasi Bertahap:** Tingkatkan scope setelah model berfungsi dengan scope kecil
+   - Identifikasi constraints yang mungkin bertentangan
+   - Coba run command dengan subset dari constraints
 
-**Tip 2: Gunakan Assertion**
+3. **Relaxasi Constraints**:
+   - Lemahkan constraints yang terlalu ketat
+   - Gunakan `some` atau `>=` daripada `all` atau `=`
 
-- **Tujuan:** Memverifikasi properti penting model secara eksplisit
-- **Alasan Metodologi:** Assertions menemukan kesalahan yang mungkin terlewat dalam testing biasa
-- **Best Practice:** Tulis assertions untuk semua invariant kritis sistem
-- **Strategi Verifikasi:** Gunakan `check` pada setiap assertion untuk mencari counterexample
+### 10.2 Mengatasi Assertion Check Failures
 
-**Tip 3: Jalankan Predicate Spesifik**
+Ketika assertion check menghasilkan counterexample:
 
-- **Tujuan:** Isolasi pengujian ke skenario tertentu untuk debugging yang lebih fokus
-- **Alasan Efektivitas:** Mempersempit ruang pencarian ke area yang menjadi perhatian
-- **Teknik Implementasi:** Definisikan predicates untuk skenario edge case atau alur bisnis spesifik
-- **Manfaat Analitis:** Membantu mengidentifikasi akar masalah dalam model kompleks
+1. **Analisis Counterexample**:
 
-**Tip 4: Visualisasi Hasil**
+   - Tinjau instance yang menyebabkan assertion gagal
+   - Pahami kenapa instance ini melanggar assertion
 
-- **Tujuan:** Meningkatkan pemahaman tentang instance model yang dihasilkan
-- **Alasan Kognitif:** Representasi visual lebih mudah dipahami daripada output teks
-- **Fitur Alloy:** Gunakan proyeksi dan tema untuk menyesuaikan visualisasi
-- **Teknik Analisis:** Periksa relasi dan struktur instance untuk menemukan pola atau anomali
+2. **Perbaiki Model atau Assertion**:
 
-**Tip 5: Iterasi Perbaikan**
+   ```alloy
+   // Assertion yang diperkuat
+   assert PrerequisitesEnforced {
+     all m: Mahasiswa | registrasiValid[m] implies
+       all mk: m.mengambil, prereq: mk.prasyarat | prereq in m.mengambil
+   }
+   ```
 
-- **Tujuan:** Meningkatkan model secara inkremental berdasarkan hasil testing
-- **Metodologi:** Analisis counterexample, perbaiki model, dan uji kembali
-- **Siklus Perbaikan:** Identifikasi masalah → Perbaiki constraint → Validasi kembali
-- **Pendekatan Sistematis:** Catat semua counterexample dan solusinya untuk pembelajaran
+3. **Verifikasi Kembali**:
+   ```alloy
+   check PrerequisitesEnforced for 5 but 6 Int
+   ```
+
+### 10.3 Optimasi Performance
+
+Untuk model yang kompleks:
+
+1. **Gunakan Scope Minimal Namun Cukup**:
+
+   ```alloy
+   check assertion for 3 but 4 Int
+   ```
+
+2. **Parsimony dalam Constraints**:
+
+   - Hindari constraints berlebihan yang tidak diperlukan
+   - Pertimbangkan tradeoff antara akurasi dan performance
+
+3. **Refaktor untuk Performance**:
+   - Bagi model besar menjadi modul-modul terpisah
+   - Gunakan teknik inkremental model building
+
+## 11. Kesimpulan
+
+Model Alloy untuk sistem registrasi mata kuliah ini mendemonstrasikan kemampuan Alloy dalam memodelkan sistem kompleks dengan banyak entitas dan relasi. Beberapa poin penting:
+
+1. **Structural Modeling**:
+
+   - Signatures dan fields menangkap struktur statis sistem
+   - Relasi refleksif (prasyarat) dan multi-relasi (nilai) ditangani dengan baik
+
+2. **Business Rules**:
+
+   - Facts menjamin integritas data dan batasan bisnis
+   - Predicates memungkinkan validasi fleksibel
+
+3. **Verification**:
+
+   - Assertions memverifikasi properti kompleks seperti non-sirkularitas prasyarat
+   - Check commands memastikan model sesuai ekspektasi
+
+4. **Expressiveness**:
+   - Ekspresi relasional (join, product, closure) memungkinkan query kompleks
+   - Quantifiers (`all`, `some`, `no`, `lone`) memberikan fleksibilitas logika
+
+Model ini bisa digunakan sebagai blueprint untuk implementasi sistem registrasi mata kuliah nyata, dengan jaminan formal bahwa aturan bisnis dipatuhi dan edge cases ditangani dengan tepat.
